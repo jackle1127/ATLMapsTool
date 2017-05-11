@@ -1,0 +1,600 @@
+<html>
+    <head>
+        <script src='jszip.js'></script>
+        <script src='xlsx.js'></script>
+        <script src='tsv_parser.js'></script>
+        <link rel="stylesheet" type="text/css" href="buttons.css">
+        <style>
+            #mainTable {
+                width: 100%;
+                height: 100%;
+                table-layout: fixed;
+            }
+            #mainTable td {
+                vertical-align: top;
+            }
+            #dataTable {
+                border-spacing: 0;
+            }
+            #dataTable td {
+                padding: 0;
+            }
+            .dataTableCell {
+                height: 24px;
+                overflow: hidden;
+                margin: 0;
+            }
+            .text {
+                width: 100%;
+                min-height: 500px;
+            }
+            #dataTableContainer {
+                max-width: 100%;
+                max-height: 100%;
+                overflow: scroll;
+                display: inline-block;
+            }
+            #tdDataTable {
+                max-width: 55%;
+                /*max-height: 100%;*/
+            }
+            .rightPart {
+                padding-left: 10px;
+                font-size: 1.2em;
+            }
+            .rowNumber {
+                width: 30px;
+                border-bottom:1px solid #98bf21;
+            }
+            .colNumber {
+                border-right:1px solid #98bf21;
+                border-bottom:1px solid #98bf21;
+                position: relative;
+            }
+            #dataTable {
+                font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+            }
+            .dataTableCell {
+                font-size:1em;
+                border-right:1px solid #98bf21;
+                border-bottom:1px solid #98bf21;
+            }
+            .rowNumber, .colNumber {
+                height: 24px;
+                font-size:1.1em;
+                background-color:#A7C942;
+                color:#ffffff;
+                text-align: center;
+                /*border-right:1px solid #98bf21;*/
+            }
+            #dataTable tr:nth-child(odd) td .dataTableCell {
+                color:#000000;
+                background-color:#EAF2D3;
+            }
+            ul {
+                counter-reset: li; /* Initiate a counter */
+                list-style: none; /* Remove default numbering */
+                *list-style: decimal; /* Keep using default numbering for IE6/7 */
+                font: 15px 'trebuchet MS', 'lucida sans';
+                padding: 0;
+                text-shadow: 0 1px 0 rgba(255,255,255,.5);
+            }
+            ul li {
+                margin-left: 2em; /* Add some left margin for inner lists */
+            }
+            .addButton {
+                margin-left: 1.65em;
+            }
+            .resizeColumnDiv {
+                position: absolute;
+                cursor: col-resize;
+                height: 24px;
+                top: 0;
+                z-index: 100;
+            }
+            #propertiesRoot li *{
+                margin-right: 5px;
+            }
+            .unselectable {
+                user-select: none;
+                -moz-user-select: none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+                -o-user-select: none;
+            }
+            #rightPartDiv {
+                overflow: auto;
+            }
+            #progressText {
+                font-size: 1.5em;
+                font-weight: bold;
+                font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
+            }
+        </style>
+    </head>
+    <body onload='resize()' onresize='resize()'>
+        <style id='dataTableStyleSheet'>
+        </style>
+        <table id='mainTable'>
+            <tr>
+                <td rowspan='2' id='tdDataTable'>
+                    <div id='dataTableContainer'>
+                        <a class='button orange medium' onclick='tableClear()'>Reset</a>
+                        <br/><br/>
+                        <table id='dataTable'>
+                            <tr>
+                                <td>Load spreadsheet</td>
+                            </tr>
+                            <tr>
+                                <td><input type='file' id='excelFileInput' onchange='loadSpreadsheet(this)'/></td>
+                            </tr>
+                            <tr>
+                                <td>Or paste data in text box</td>
+                            </tr>
+                            <tr>
+                                <td><input id='pasteSpreadSheet' /></td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td class='rightPart'>
+                    <div id='rightPartDiv'>
+                        Skip rows(separate by commas) <input id='rowSkip' />
+                        <br/>
+                        Coordinate:
+                        <ul>
+                            <li>
+                                <table>
+                                    <tr><td>Latitude:</td><td><select id='lat' class='dataInputCoordinates'></select></td></tr>
+                                    <tr><td>Longitude:</td><td><select id='lng' class='dataInputCoordinates'></select></td></tr>
+                                    <tr><td>Or Street address:</td><td><select id='address' class='dataInputCoordinates'></select></td></tr>
+                                </table>
+                            </li>
+                        </ul>
+                        Properties:
+                        <ul id='propertiesRoot'>
+                        </ul>
+                        <a class='button green medium addButton' onclick='addProperty(this)' id='addRootProperty'>Add</a>
+                        <br/><br/>
+                        <a onclick='generate()' class='button blue big'>Generate</a>
+                        <br/><br/>
+                        <span id='progressText'></span>
+                        <br/>
+                        Output GeoJSON:
+                        <a class='button orange medium' onclick='document.getElementById("outputText").innerText="";'>Clear</a>
+                        <br/><br/>
+                        <textarea readonly id='outputText' class='text'></textarea>
+                    <div>
+                </td>
+            </tr>
+        </table>
+    </body>
+    <script>
+        /*window.onload = function() {
+            ajaxCall('http://nominatim.openstreetmap.org/search?format=json&q=55 maple street 30314', null);
+        };*/
+        var RESIZE_BAR_WIDTH = 6;
+        var COLUMN_MIN_WIDTH = 80;
+        var PROGRESS_COLOR_START = [0, 21, 179];
+        var PROGRESS_COLOR_END = [38, 197, 0];
+        
+        var tablePopulated = false;
+        var propertyCounter = 0;
+        var propertyIndices = new Set();
+        var columnSize = [];
+        var data = [];
+        
+        var rowsFinished;
+        var geoCodingCache = {};
+
+        var propertiesConfigurations = {};
+        var savedData = {'data': data, 'properties': propertiesConfigurations};
+        
+        addProperty(document.getElementById('addRootProperty'));
+        setOnPasteToTableInput();
+        
+        function loadSpreadsheet(fileInput) { // Receive data through loading an excel spreadsheet.
+            var file = fileInput.files[0];
+            var extension = getExtension(file.name);
+            var reader = new FileReader();
+            
+            if (extension == 'xlsx') {
+                reader.onload = function(event) {
+                    var xlsxData = event.target.result;
+                    var workbook = XLSX.read(xlsxData, {'type': 'binary'});
+                    
+                    workbook.SheetNames.forEach(function(sheetName) {
+                        var tsvText = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName], {'FS': '\t'}); // Sheet to tsv instead of csv.
+                        data = parseText(tsvText, '\t');
+                        data = trimData(data);
+                        populateTable();
+                        populateComboBoxes();
+                    });
+                };
+                reader.readAsBinaryString(file);
+            } else if (extension == 'csv') {
+                reader.onload = function(event) {
+                    var dataText = event.target.result;
+                    data = parseText(dataText, ',');
+                    data = trimData(data);
+                    populateTable();
+                    populateComboBoxes();
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function getExtension(fileName) {
+            var dotIndex = fileName.lastIndexOf('.');
+            if (dotIndex >= 0) {
+                return fileName.substring(dotIndex + 1);
+            }
+            return '';
+        }
+        
+        function setOnPasteToTableInput() {// Receive data through pasting TSV data in. An alternative way to loading Excel spreadsheet.
+            document.getElementById('pasteSpreadSheet').onpaste = function (event) {
+                var plainText = event.clipboardData.getData('text/plain');
+                data = parseText(plainText, '\t');
+                data = trimData(data);
+                populateTable();
+                populateComboBoxes();
+
+//                saveDataToCookie();
+                return false;
+            };
+        }
+        
+        /*function parseTSV(tsvText) {
+            tsvText = tsvText.replace(/\r/g, '');
+            data = tsvText.split('\n');
+            for (var i = 0; i < data.length; i++) {
+                data[i] = data[i].split('\t');
+            }
+        }*/
+        
+        function tableClear() {
+            data = [];
+
+            document.getElementById('dataTable').innerHTML = '<tr>\n'
+                    + '            <td>Load spreadsheet</td>\n'
+                    + '        </tr>\n'
+                    + '        <tr>\n'
+                    + '            <td><input type="file" id="excelFileInput" onchange="loadSpreadsheet(this)"/></td>\n'
+                    + '        </tr>\n'
+                    + '        <tr>\n'
+                    + '            <td>Or paste data in text box</td>\n'
+                    + '        </tr>\n'
+                    + '        <tr>\n'
+                    + '            <td><input id="pasteSpreadSheet" /></td>\n'
+                    + '        </tr>\n';
+            setOnPasteToTableInput();
+            tablePopulated = false;
+            document.getElementById('dataTableContainer').style.height = '151px';
+        }
+        
+        function refreshColumnSizes() {
+            var dataTableStyleSheet = document.getElementById('dataTableStyleSheet');
+            var styleSheetHTML = '';
+            for (var i = 0; i < columnSize.length; i++) {
+                var clampedSize = Math.max(COLUMN_MIN_WIDTH, columnSize[i]);
+                styleSheetHTML += '.column' + i + '{\n'
+                        + 'width: ' + clampedSize + 'px;\n'
+                        + '}\n';
+                if (columnSize[i] < clampedSize) {
+                    document.getElementById('columnResize' + i).style.left = clampedSize - (RESIZE_BAR_WIDTH / 2) + 'px';
+                }
+            }
+            dataTableStyleSheet.innerHTML = styleSheetHTML;
+        }
+        
+        var mouseState = {};
+        
+        function columnResizeMouseDown(event) {
+            mouseState['state'] = 'down';
+            mouseState['column'] = event.target.id.substring('columnResize'.length);
+            mouseState['target'] = event.target;
+            event.target.style.left = event.target.parentNode.offsetWidth - (RESIZE_BAR_WIDTH / 2) + 'px';
+            columnSize[mouseState['column']] = event.target.offsetLeft + event.target.offsetWidth;
+            document.getElementById('dataTable').className = 'unselectable';
+        }
+        
+        function columnResizeMouseMove(event) {
+            if (mouseState['state'] == 'down') {
+                var deltaX = event.pageX - mouseState['previousX'];
+                columnSize[mouseState['column']] += deltaX;
+                mouseState['target'].style.left = columnSize[mouseState['column']] - (RESIZE_BAR_WIDTH / 2) + 'px';
+                refreshColumnSizes();
+            }
+            mouseState['previousX'] = event.pageX;
+            mouseState['previousY'] = event.pageY;
+        }
+        
+        function columnResizeMouseUp(event) {
+            mouseState['state'] = 'up';
+            document.getElementById('dataTable').className = '';
+        }
+
+        document.getElementById('dataTable').onmousemove = function(event) {columnResizeMouseMove(event)};
+        document.getElementById('dataTable').onmouseup = function(event) {columnResizeMouseUp(event)};
+        function populateTable() {
+            var tableHTML = '<tr><td><div class="rowNumber"> </div></td>';
+            columnSize = [];
+            for (var i = 1; i <= data[0].length; i++) {
+                tableHTML += '<td><div class="colNumber column' + (i - 1) + '">' + i
+                        + '<div class="resizeColumnDiv" style="width: ' + RESIZE_BAR_WIDTH + 'px; '
+                        + 'left: ' + (100 - RESIZE_BAR_WIDTH / 2) + 'px" onmousedown="columnResizeMouseDown(event)"'
+                        + ' id="columnResize' + (i - 1) + '">'
+                        + '</div></div></td>';
+                columnSize.push(100);
+            }
+            tableHTML += '</tr>';
+            for (var i = 0; i < data.length; i++) {
+                tableHTML += '<tr><td><div class="rowNumber">' + (i + 1) + '</div></td>';
+                for (var j = 0; j < data[0].length; j++) {
+                    tableHTML += '<td><div class="dataTableCell column' + j + '">' + data[i][j] + '</div></td>';
+                }
+                tableHTML += '</tr>';
+            }
+            document.getElementById('dataTable').innerHTML = tableHTML;
+            refreshColumnSizes();
+            resize();
+            
+            tablePopulated = true;
+        }
+
+        function populateComboBoxes() {
+            if (data.length > 0) {
+                var comboBoxes = document.getElementsByClassName('dataInputCoordinates');
+                for (var i = 0; i < comboBoxes.length; i++) {
+                    populateComboBox(comboBoxes[i], false);
+                }
+                comboBoxes = document.getElementsByClassName('dataInput');
+                for (var i = 0; i < comboBoxes.length; i++) {
+                    populateComboBox(comboBoxes[i], true);
+                }
+            }
+        }
+        
+        function populateComboBox(comboBox, customizable) {
+            if (data.length > 0) {
+                var comboBoxHTML = '<option value="none">Not used</option>\n';
+                if (customizable) {
+                    comboBoxHTML += '<option value="custom">Custom</option>\n';
+                    comboBoxHTML += '<option value="extended">Extended</option>\n';
+                    comboBox.onchange = function() {customizableComboChange(this)};
+                }
+                for (var i = 0; i < data[0].length; i++) {
+                    comboBoxHTML += '<option value="' + i +'">Column ' + (i + 1) + '</option>';
+                }
+                comboBox.innerHTML = comboBoxHTML;
+            }
+        }
+        
+        function customizableComboChange(comboBox) {
+            function removeCustom(comboBox) {
+                var parent = comboBox.parentNode;
+                while (parent.children.length > 3) {
+                    parent.removeChild(parent.children[3]);
+                }
+            }
+            var parent = comboBox.parentNode;
+            if (comboBox.value == 'custom') {
+                if (parent.children.length == 3 || parent.children.length > 3 && parent.children[3].tagName != 'INPUT') {
+                    removeCustom(comboBox);
+                    var customTextBox = document.createElement('input');
+                    parent.appendChild(customTextBox);
+                }
+            } else if (comboBox.value == 'extended') {
+                if (parent.children.length == 3 || parent.children.length > 3 && parent.children[3].tagName != 'UL') {
+                    removeCustom(comboBox);
+                    var customUL = document.createElement('ul');
+                    var newComboBox = addPropertyToUL(customUL);
+                    populateComboBox(newComboBox, true);
+                    
+                    var newAddButton = document.createElement('a');
+                    newAddButton.className = 'button green medium addButton';
+                    newAddButton.innerText = 'Add';
+                    newAddButton.onclick = function() {addProperty(this)};
+
+                    parent.appendChild(customUL);
+                    parent.appendChild(document.createElement('br'));
+                    parent.appendChild(newAddButton);
+                }
+            } else {
+                removeCustom(comboBox);
+            }
+        }
+        
+        function resize() {
+            document.getElementById('dataTableContainer').style.height = window.innerHeight - 20 + 'px';
+            document.getElementById('rightPartDiv').style.height = window.innerHeight - 20 + 'px';
+        }
+        
+        function addProperty(addButton) { // The parameters are optional.
+            var ulElement = addButton.previousSibling.previousSibling;
+            var newComboBox = addPropertyToUL(ulElement);
+            populateComboBox(newComboBox, true);
+        }
+        
+        function addPropertyToUL(ulElement) { // Return the combo box to populate more easily.
+            var newInput = document.createElement('input');
+            var newComboBox = document.createElement('select');
+            var newRemoveButton = document.createElement('a');
+            
+            newInput.value = 'name';
+            newComboBox.className = 'dataInput';
+            newRemoveButton.className = 'button orange small';
+            newRemoveButton.onclick = function() {removeProperty(this)};
+            newRemoveButton.innerText = 'Remove';
+            
+            var newPropertyLi = document.createElement('li');
+            newPropertyLi.id = 'propertyLi' + propertyCounter;
+            newPropertyLi.appendChild(newInput);
+            newPropertyLi.appendChild(newComboBox);
+            newPropertyLi.appendChild(newRemoveButton);
+            ulElement.appendChild(newPropertyLi);
+            propertyCounter++;
+            return newComboBox;
+        }
+        
+        function removeProperty(removeButton) {
+            removeButton.parentNode.parentNode.removeChild(removeButton.parentNode);
+        }
+        
+        function ulToJSON(ulElement, jsonElement, row) {
+            var liElements = ulElement.children;
+            console.log('row ' + row);
+            for (var i = 0; i < liElements.length; i++) {
+                var liElement = liElements[i];
+                var name = liElement.children[0].value;
+                var value = liElement.children[1].value;
+                if (value == 'none') {
+                    jsonElement[name] = '';
+                } else if (value == 'custom') {
+                    jsonElement[name] = liElement.children[3].value;
+                } else if (value == 'extended') {
+                    var newJSON = {};
+                    ulToJSON(liElement.children[3], newJSON, row)
+                    jsonElement[name] = newJSON;
+                } else {
+                    jsonElement[name] = data[row][value];
+                }
+            }
+        }
+
+        var refreshTable;
+        function generate() {
+            if (tablePopulated) {
+                var outputGeoJSON = {
+                        'type': 'FeatureCollection',
+                        'features': []
+                };
+                
+                var rowsToSkip = document.getElementById('rowSkip').value.split(/\s*,\s*/);
+                if (rowsToSkip.length == 1 && rowsToSkip[0] == '') rowsToSkip.pop();
+                rowsToSkip = new Set(rowsToSkip);
+                
+                // Coordinate handling.
+                var latInput = document.getElementById('lat').value;
+                var lngInput = document.getElementById('lng').value;
+                var addressInput = document.getElementById('address').value;
+                                
+                if (latInput == 'none' || lngInput == 'none') {
+                    alert('Not enough coordinate information.');
+                    return;
+                }
+                refreshTable = false;
+                rowsFinished = 0;
+                var rootUL = document.getElementById('propertiesRoot');
+                
+                var rowsToGenerate = data.length - rowsToSkip.size;
+                console.log(rowsToGenerate);
+                // Prepare marker list to preserve markers order in case asynchronous method is used.
+                for (var i = 1; i <= rowsToGenerate; i++) {
+                    outputGeoJSON['features'].push({});
+                }
+                var indexInJSONArray = 0; // Also for order keeping.
+                
+                for (var i = 0; i < data.length; i++) {
+                    if (rowsToSkip.has((i + 1).toString())) {
+                        continue;
+                    }
+                    var dataLat, dataLng;
+                    dataLat = parseFloat(data[i][latInput]);
+                    dataLng = parseFloat(data[i][lngInput]);
+                    if ((isNaN(dataLat) || isNaN(dataLng)) && addressInput != 'none') {
+                       var address = data[i][addressInput];
+                        if (!geoCodingCache[address]) {
+                            var callback = function(responseText, args) {
+                                refreshTable = true;
+                                var row = args[0];
+                                var callbackAddress = args[1];
+                                var indexInJSON = args[2];
+                                var latColumn = args[3];
+                                var lngColumn = args[4];
+                                var json = JSON.parse(responseText);
+                                console.log(json);
+                                var ajaxLat = 0, ajaxLng = 0;
+                                if (json.length > 0) {
+                                    var ajaxLat = json[0]['lat'];
+                                    var ajaxLng = json[0]['lon'];
+                                    geoCodingCache[callbackAddress] = {'lat': ajaxLat, 'lng': ajaxLng};
+                                    data[row][latColumn] = ajaxLat;
+                                    data[row][lngColumn] = ajaxLng;
+                                }
+                                addDatumToGeoJSON(outputGeoJSON, rootUL, ajaxLat, ajaxLng, row, rowsToGenerate, indexInJSON);
+                            };
+                            var argument = [i, address, indexInJSONArray, latInput, lngInput];
+                            ajaxCall('http://nominatim.openstreetmap.org/search?format=json&q=' + address, callback, argument);
+                        } else {
+                            dataLat = geoCodingCache[address]['lat'];
+                            dataLng = geoCodingCache[address]['lng'];
+                            data[i][latInput] = dataLat;
+                            data[i][lngInput] = dataLng;
+                            addDatumToGeoJSON(outputGeoJSON, rootUL, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
+                        }
+                    } else {
+                        addDatumToGeoJSON(outputGeoJSON, rootUL, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
+                    }
+                    indexInJSONArray++;
+                }
+            }
+        }
+        
+        function addDatumToGeoJSON(outputGeoJSON, ulElement, dataLat, dataLng, row, rowsToGenerate, indexInJSONArray) {
+            var newProperties = {};
+            ulToJSON(ulElement, newProperties, row);
+            var newDatum = {
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [
+                            parseFloat(dataLng),
+                            parseFloat(dataLat)
+                        ]
+                    },
+                    'properties': newProperties
+            };
+            outputGeoJSON['features'][indexInJSONArray] = newDatum;
+            rowsFinished++;
+            console.log(rowsFinished + '/' + rowsToGenerate + ' rows finished');
+            setTimeout(function() {refreshProgress(rowsFinished / rowsToGenerate)}, 0);
+            //alert(rowsFinished + ' finished');
+            if (rowsFinished == rowsToGenerate) { // Have to put this here to handle the asynchronous calls.
+                document.getElementById('outputText').innerText = JSON.stringify(outputGeoJSON, null, 2);
+                if (refreshTable) {
+                    populateTable();
+                }
+            }
+        }
+        
+        function refreshProgress(alpha) {
+            var progressText = document.getElementById('progressText');
+            var red = (1 - alpha) * PROGRESS_COLOR_START[0] + alpha * PROGRESS_COLOR_END[0];
+            var green = (1 - alpha) * PROGRESS_COLOR_START[1] + alpha * PROGRESS_COLOR_END[1];
+            var blue = (1 - alpha) * PROGRESS_COLOR_START[2] + alpha * PROGRESS_COLOR_END[2];
+            var finalColor = 'rgb(' + parseInt(red) + ', ' + parseInt(green) + ', ' + parseInt(blue) +')';
+            progressText.style.color = finalColor;
+            progressText.innerText = parseInt(alpha * 100) + '% finished';
+        }
+        
+        function ajaxCall(url, callback, arg) {
+            url = encodeURI(url);
+            console.log(url);
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    if (this.status == 200) {
+                        //alert(this.responseText);
+                        callback(this.responseText, arg);
+                    } else {
+                        callback('[]', arg);
+                    }
+                }
+            }
+            xhttp.open('GET', url, true);
+            xhttp.send();
+        }
+    </script>
+</html>
