@@ -382,7 +382,7 @@
             if (comboBox.value == 'custom') {
                 if (parent.children.length == 3 || parent.children.length > 3 && parent.children[3].tagName != 'INPUT') {
                     removeCustom(comboBox);
-                    var customTextBox = document.createElement('input');
+                    var customTextBox = document.createElement('textarea');
                     parent.appendChild(customTextBox);
                 }
             } else if (comboBox.value == 'extended') {
@@ -442,7 +442,7 @@
             removeButton.parentNode.parentNode.removeChild(removeButton.parentNode);
         }
         
-        function ulToJSON(ulElement, jsonElement, row) {
+        /*function ulToJSON(ulElement, jsonElement, row) {
             var liElements = ulElement.children;
             console.log('row ' + row);
             for (var i = 0; i < liElements.length; i++) {
@@ -461,8 +461,68 @@
                     jsonElement[name] = data[row][value];
                 }
             }
-        }
+        }*/
 
+		function parseUL(ulElement) {
+			var resultTree = [];
+            var liElements = ulElement.children;
+            for (var i = 0; i < liElements.length; i++) {
+                var liElement = liElements[i];
+                var name = liElement.children[0].value;
+                var value = liElement.children[1].value;
+                if (value == 'none') {
+                    resultTree.push({'name':name, 'type': 'custom', 'content':[{'type':'text', 'content':''}]});
+                } else if (value == 'custom') {
+                    resultTree.push({'name':name, 'type': 'custom', 'content':customToNodes(liElement.children[3].value)});
+                } else if (value == 'extended') {
+                    var newJSON = parseUL(liElement.children[3]);
+                    resultTree.push({'name':name, 'type': 'extended', 'content':newJSON});
+                } else {
+                    resultTree.push({'name':name, 'type': 'column', 'content':value});
+                }
+            }
+			return resultTree;
+        }
+		
+		
+		function customToNodes(customText) {
+			var resultNodes = [];
+			var state = 'TEXT';
+			var currentToken = '';
+			for (var i = 0; i < customText.length; i++) {
+				var currentChar = customText.charAt(i);
+				if (state == 'TEXT') {
+					if (currentChar != '#') {
+						currentToken += currentChar;
+					} else {
+						state = 'HASH';
+					}
+				} else if (state == 'HASH') {
+					if (!isNaN(parseInt(currentChar))) { // If a number.
+						resultNodes.push({'type':'text', 'content':currentToken});
+						currentToken = currentChar;
+						state = 'COLUMN';
+					} else if (currentChar == '#') {
+						currentToken += '#';
+						state = 'TEXT';
+					} else {
+						currentToken += '#' + currentChar;
+						state = 'TEXT';
+					}
+				} else if (state == 'COLUMN') {
+					if (!isNaN(parseInt(currentChar))) { // If a number.
+						currentToken += currentChar;
+					} else if (currentChar == '#') {
+						resultNodes.push({'type':'column', 'content':currentToken});
+						currentToken = '';
+						state = 'TEXT';
+					}
+				}
+			}
+			resultNodes.push({'type':'text', 'content':currentToken});
+			return resultNodes;
+		}
+		
         var refreshTable;
         function generate() {
             if (tablePopulated) {
@@ -488,6 +548,8 @@
                 rowsFinished = 0;
                 var rootUL = document.getElementById('propertiesRoot');
                 
+				var parsedJSON = parseUL(rootUL);
+				
                 var rowsToGenerate = data.length - rowsToSkip.size;
                 console.log(rowsToGenerate);
                 // Prepare marker list to preserve markers order in case asynchronous method is used.
@@ -523,7 +585,7 @@
                                     data[row][latColumn] = ajaxLat;
                                     data[row][lngColumn] = ajaxLng;
                                 }
-                                addDatumToGeoJSON(outputGeoJSON, rootUL, ajaxLat, ajaxLng, row, rowsToGenerate, indexInJSON);
+                                addDatumToGeoJSON(outputGeoJSON, parsedJSON, ajaxLat, ajaxLng, row, rowsToGenerate, indexInJSON);
                             };
                             var argument = [i, address, indexInJSONArray, latInput, lngInput];
                             ajaxCall('http://nominatim.openstreetmap.org/search?format=json&q=' + address, callback, argument);
@@ -532,19 +594,45 @@
                             dataLng = geoCodingCache[address]['lng'];
                             data[i][latInput] = dataLat;
                             data[i][lngInput] = dataLng;
-                            addDatumToGeoJSON(outputGeoJSON, rootUL, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
+                            addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
                         }
                     } else {
-                        addDatumToGeoJSON(outputGeoJSON, rootUL, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
+                        addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, i, rowsToGenerate, indexInJSONArray);
                     }
                     indexInJSONArray++;
                 }
             }
         }
         
-        function addDatumToGeoJSON(outputGeoJSON, ulElement, dataLat, dataLng, row, rowsToGenerate, indexInJSONArray) {
-            var newProperties = {};
-            ulToJSON(ulElement, newProperties, row);
+		// parseJSON: A list of nodes that store name and content of each property.
+		// row: The current row to extract data from.
+		function dataFromJSON(parsedJSON, row) {
+			var resultJSON = {};
+			for (var i = 0; i < parsedJSON.length; i++) {
+				var property = parsedJSON[i];
+				if (property['type'] == 'custom') {
+					var newProperty = '';
+					for (var j = 0; j < property['content'].length; j++) {
+						var node = property['content'][j];
+						if (node['type'] == 'text') {
+							newProperty += node['content'];
+						} else {
+							newProperty += data[row][node['content']];
+						}
+					}
+					resultJSON[property['name']] = newProperty;
+				} else if (property['type'] == 'extended') {
+					resultJSON[property['name']] = dataFromJSON(property['content'], row);
+				} else {
+					resultJSON[property['name']] = data[row][property['content']];
+				}
+			}
+			return resultJSON;
+		}
+		
+        function addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, row, rowsToGenerate, indexInJSONArray) {
+            //var newProperties = {};
+            //ulToJSON(ulElement, newProperties, row);
             var newDatum = {
                     'type': 'Feature',
                     'geometry': {
@@ -554,7 +642,7 @@
                             parseFloat(dataLat)
                         ]
                     },
-                    'properties': newProperties
+                    'properties': dataFromJSON(parsedJSON, row)
             };
             outputGeoJSON['features'][indexInJSONArray] = newDatum;
             rowsFinished++;
