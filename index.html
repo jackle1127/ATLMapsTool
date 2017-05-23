@@ -1,5 +1,6 @@
 <html>
     <head>
+		<title>Spreadsheet to geoJSON tool</title>
         <script src='jszip.js'></script>
         <script src='xlsx.js'></script>
         <script src='tsv_parser.js'></script>
@@ -80,7 +81,13 @@
                 text-shadow: 0 1px 0 rgba(255,255,255,.5);
             }
             ul li {
+				margin-top: 4px;
                 margin-left: 2em; /* Add some left margin for inner lists */
+            }
+            #propertiesRoot textarea {
+                display: block;
+                margin-top: 4px;
+                margin-bottom: 4px;
             }
             .addButton {
                 margin-left: 1.65em;
@@ -156,6 +163,9 @@
                         </ul>
                         <a class='button green medium addButton' onclick='addProperty(this)' id='addRootProperty'>Add</a>
                         <br/><br/>
+                        <a class='button blue medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                        <a class='button green medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
+                        <br/><br/>
                         <a onclick='generate()' class='button blue big'>Generate</a>
                         <br/><br/>
                         <span id='progressText'></span>
@@ -179,7 +189,6 @@
         var PROGRESS_COLOR_END = [38, 197, 0];
         
         var tablePopulated = false;
-        var propertyCounter = 0;
         var propertyIndices = new Set();
         var columnSize = [];
         var data = [];
@@ -193,7 +202,7 @@
         addProperty(document.getElementById('addRootProperty'));
         setOnPasteToTableInput();
         
-        function loadSpreadsheet(fileInput) { // Receive data through loading an excel spreadsheet.
+        function loadSpreadsheet(fileInput) { // Receive data through loading a spreadsheet.
             var file = fileInput.files[0];
             var extension = getExtension(file.name);
             var reader = new FileReader();
@@ -227,7 +236,7 @@
         function getExtension(fileName) {
             var dotIndex = fileName.lastIndexOf('.');
             if (dotIndex >= 0) {
-                return fileName.substring(dotIndex + 1);
+                return fileName.substring(dotIndex + 1).toLowerCase();
             }
             return '';
         }
@@ -245,14 +254,7 @@
             };
         }
         
-        /*function parseTSV(tsvText) {
-            tsvText = tsvText.replace(/\r/g, '');
-            data = tsvText.split('\n');
-            for (var i = 0; i < data.length; i++) {
-                data[i] = data[i].split('\t');
-            }
-        }*/
-        
+        // Clear the spreadsheet table.
         function tableClear() {
             data = [];
 
@@ -389,7 +391,7 @@
                 if (parent.children.length == 3 || parent.children.length > 3 && parent.children[3].tagName != 'UL') {
                     removeCustom(comboBox);
                     var customUL = document.createElement('ul');
-                    var newComboBox = addPropertyToUL(customUL);
+                    var newComboBox = addPropertyToUL(customUL)[2];
                     populateComboBox(newComboBox, true);
                     
                     var newAddButton = document.createElement('a');
@@ -411,13 +413,13 @@
             document.getElementById('rightPartDiv').style.height = window.innerHeight - 20 + 'px';
         }
         
-        function addProperty(addButton) { // The parameters are optional.
+        function addProperty(addButton) {
             var ulElement = addButton.previousSibling.previousSibling;
-            var newComboBox = addPropertyToUL(ulElement);
+            var newComboBox = addPropertyToUL(ulElement)[2];
             populateComboBox(newComboBox, true);
         }
         
-        function addPropertyToUL(ulElement) { // Return the combo box to populate more easily.
+        function addPropertyToUL(ulElement) {
             var newInput = document.createElement('input');
             var newComboBox = document.createElement('select');
             var newRemoveButton = document.createElement('a');
@@ -429,42 +431,21 @@
             newRemoveButton.innerText = 'Remove';
             
             var newPropertyLi = document.createElement('li');
-            newPropertyLi.id = 'propertyLi' + propertyCounter;
             newPropertyLi.appendChild(newInput);
             newPropertyLi.appendChild(newComboBox);
             newPropertyLi.appendChild(newRemoveButton);
             ulElement.appendChild(newPropertyLi);
-            propertyCounter++;
-            return newComboBox;
+            return [newPropertyLi, newInput, newComboBox, newRemoveButton];
         }
         
         function removeProperty(removeButton) {
             removeButton.parentNode.parentNode.removeChild(removeButton.parentNode);
         }
         
-        /*function ulToJSON(ulElement, jsonElement, row) {
-            var liElements = ulElement.children;
-            console.log('row ' + row);
-            for (var i = 0; i < liElements.length; i++) {
-                var liElement = liElements[i];
-                var name = liElement.children[0].value;
-                var value = liElement.children[1].value;
-                if (value == 'none') {
-                    jsonElement[name] = '';
-                } else if (value == 'custom') {
-                    jsonElement[name] = liElement.children[3].value;
-                } else if (value == 'extended') {
-                    var newJSON = {};
-                    ulToJSON(liElement.children[3], newJSON, row)
-                    jsonElement[name] = newJSON;
-                } else {
-                    jsonElement[name] = data[row][value];
-                }
-            }
-        }*/
-
-		function parseUL(ulElement) {
-			var resultTree = [];
+        // Convert the Unordered List (UL) element to an easy-to-traverse intermediate node list
+        // that will be used to generate a json object for each row of data.
+        function parseUL(ulElement) {
+            var resultTree = [];
             var liElements = ulElement.children;
             for (var i = 0; i < liElements.length; i++) {
                 var liElement = liElements[i];
@@ -481,48 +462,48 @@
                     resultTree.push({'name':name, 'type': 'column', 'content':value});
                 }
             }
-			return resultTree;
+            return resultTree;
         }
-		
-		
-		function customToNodes(customText) {
-			var resultNodes = [];
-			var state = 'TEXT';
-			var currentToken = '';
-			for (var i = 0; i < customText.length; i++) {
-				var currentChar = customText.charAt(i);
-				if (state == 'TEXT') {
-					if (currentChar != '#') {
-						currentToken += currentChar;
-					} else {
-						state = 'HASH';
-					}
-				} else if (state == 'HASH') {
-					if (!isNaN(parseInt(currentChar))) { // If a number.
-						resultNodes.push({'type':'text', 'content':currentToken});
-						currentToken = currentChar;
-						state = 'COLUMN';
-					} else if (currentChar == '#') {
-						currentToken += '#';
-						state = 'TEXT';
-					} else {
-						currentToken += '#' + currentChar;
-						state = 'TEXT';
-					}
-				} else if (state == 'COLUMN') {
-					if (!isNaN(parseInt(currentChar))) { // If a number.
-						currentToken += currentChar;
-					} else if (currentChar == '#') {
-						resultNodes.push({'type':'column', 'content':currentToken});
-						currentToken = '';
-						state = 'TEXT';
-					}
-				}
-			}
-			resultNodes.push({'type':'text', 'content':currentToken});
-			return resultNodes;
-		}
-		
+        
+        // Generate the node list for the custom properties that may have column queries in them.
+        function customToNodes(customText) {
+            var resultNodes = [];
+            var state = 'TEXT';
+            var currentToken = '';
+            for (var i = 0; i < customText.length; i++) {
+                var currentChar = customText.charAt(i);
+                if (state == 'TEXT') {
+                    if (currentChar != '#') {
+                        currentToken += currentChar;
+                    } else {
+                        state = 'HASH';
+                    }
+                } else if (state == 'HASH') {
+                    if (!isNaN(parseInt(currentChar))) { // If a number.
+                        resultNodes.push({'type':'text', 'content':currentToken});
+                        currentToken = currentChar;
+                        state = 'COLUMN';
+                    } else if (currentChar == '#') {
+                        currentToken += '#';
+                        state = 'TEXT';
+                    } else {
+                        currentToken += '#' + currentChar;
+                        state = 'TEXT';
+                    }
+                } else if (state == 'COLUMN') {
+                    if (!isNaN(parseInt(currentChar))) { // If a number.
+                        currentToken += currentChar;
+                    } else if (currentChar == '#') {
+                        resultNodes.push({'type':'column', 'content':currentToken});
+                        currentToken = '';
+                        state = 'TEXT';
+                    }
+                }
+            }
+            resultNodes.push({'type':'text', 'content':currentToken});
+            return resultNodes;
+        }
+        
         var refreshTable;
         function generate() {
             if (tablePopulated) {
@@ -548,8 +529,8 @@
                 rowsFinished = 0;
                 var rootUL = document.getElementById('propertiesRoot');
                 
-				var parsedJSON = parseUL(rootUL);
-				
+                var parsedJSON = parseUL(rootUL);
+                
                 var rowsToGenerate = data.length - rowsToSkip.size;
                 console.log(rowsToGenerate);
                 // Prepare marker list to preserve markers order in case asynchronous method is used.
@@ -566,7 +547,7 @@
                     dataLat = parseFloat(data[i][latInput]);
                     dataLng = parseFloat(data[i][lngInput]);
                     if ((isNaN(dataLat) || isNaN(dataLng)) && addressInput != 'none') {
-                       var address = data[i][addressInput];
+                        var address = data[i][addressInput];
                         if (!geoCodingCache[address]) {
                             var callback = function(responseText, args) {
                                 refreshTable = true;
@@ -604,35 +585,33 @@
             }
         }
         
-		// parseJSON: A list of nodes that store name and content of each property.
-		// row: The current row to extract data from.
-		function dataFromJSON(parsedJSON, row) {
-			var resultJSON = {};
-			for (var i = 0; i < parsedJSON.length; i++) {
-				var property = parsedJSON[i];
-				if (property['type'] == 'custom') {
-					var newProperty = '';
-					for (var j = 0; j < property['content'].length; j++) {
-						var node = property['content'][j];
-						if (node['type'] == 'text') {
-							newProperty += node['content'];
-						} else {
-							newProperty += data[row][node['content']];
-						}
-					}
-					resultJSON[property['name']] = newProperty;
-				} else if (property['type'] == 'extended') {
-					resultJSON[property['name']] = dataFromJSON(property['content'], row);
-				} else {
-					resultJSON[property['name']] = data[row][property['content']];
-				}
-			}
-			return resultJSON;
-		}
-		
+        // parsedJSON: A list of nodes that store name and content of each property.
+        // row: The current row to extract data from.
+        function dataFromJSON(parsedJSON, row) {
+            var resultJSON = {};
+            for (var i = 0; i < parsedJSON.length; i++) {
+                var property = parsedJSON[i];
+                if (property['type'] == 'custom') {
+                    var newProperty = '';
+                    for (var j = 0; j < property['content'].length; j++) {
+                        var node = property['content'][j];
+                        if (node['type'] == 'text') {
+                            newProperty += node['content'];
+                        } else {
+                            newProperty += data[row][node['content']];
+                        }
+                    }
+                    resultJSON[property['name']] = newProperty;
+                } else if (property['type'] == 'extended') {
+                    resultJSON[property['name']] = dataFromJSON(property['content'], row);
+                } else {
+                    resultJSON[property['name']] = data[row][property['content']];
+                }
+            }
+            return resultJSON;
+        }
+        
         function addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, row, rowsToGenerate, indexInJSONArray) {
-            //var newProperties = {};
-            //ulToJSON(ulElement, newProperties, row);
             var newDatum = {
                     'type': 'Feature',
                     'geometry': {
@@ -657,6 +636,124 @@
             }
         }
         
+		// Turn UL element into a JSON to be saved to client's machine. Almost identical to parseUL function.
+		function serializeUL (ulElement) {
+			var resultJSON = [];
+            var liElements = ulElement.children;
+            for (var i = 0; i < liElements.length; i++) {
+                var liElement = liElements[i];
+                var name = liElement.children[0].value;
+                var value = liElement.children[1].value;
+                if (value == 'none') {
+                    resultJSON.push({'name':name, 'type': 'none'});
+                } else if (value == 'custom') {
+                    resultJSON.push({'name':name, 'type': 'custom', 'content':liElement.children[3].value});
+                } else if (value == 'extended') {
+                    var newJSON = serializeUL(liElement.children[3]);
+                    resultJSON.push({'name':name, 'type': 'extended', 'content':newJSON});
+                } else {
+                    resultJSON.push({'name':name, 'type': 'column', 'content':value});
+                }
+            }
+            return resultJSON;
+		}
+		
+		var FILE_NAME = 'configuration.jcon';
+        function saveConfiguration() {
+			if (tablePopulated) {
+				var contentJSON = serializeUL(document.getElementById('propertiesRoot'));
+				saveFileToLocal(JSON.stringify(contentJSON, null, 2), FILE_NAME);
+			} else {
+				alert('Please insert data into the table first');
+			}
+        }
+        
+        function loadConfiguration() {
+			if (tablePopulated) {
+				openLocalFile(function (configurationFile) {
+					var extension = getExtension(configurationFile.name);
+					var reader = new FileReader();
+					
+					if (extension == 'jcon' || true) {
+						reader.onload = function(event) {
+							try {
+								var propertyJSON = JSON.parse(event.target.result);
+								var propertyUL = document.getElementById('propertiesRoot');
+								propertyUL.innerHTML = '';
+								loadProperty(propertyUL, propertyJSON);
+							} catch(exception) {
+								alert('Cannot read configuration file. The file may be corrupted.');
+							}
+						};
+						reader.readAsText(configurationFile);
+					} else {
+						alert('Cannot read configuration file. Make sure the extension of the file is "jcon"');
+					}
+				});
+			} else {
+				alert('Please insert data into the table first');
+			}
+        }
+		
+		function loadProperty(ulElement, propertyJSON) {
+			for (var i = 0; i < propertyJSON.length; i++) {
+				var property = propertyJSON[i];
+				var propertyElements = addPropertyToUL(ulElement);
+				populateComboBox(propertyElements[2], true);
+				propertyElements[1].value = property['name'];
+				if (property['type'] == 'column') {
+					propertyElements[2].selectedIndex = Math.min(propertyElements[2].options.length - 1,
+							parseInt(property['content']) + 3);
+				} else if (property['type'] == 'custom') {
+					propertyElements[2].selectedIndex = 1;
+					var customTextBox = document.createElement('textarea');
+                    propertyElements[0].appendChild(customTextBox);
+					customTextBox.value = property['content'];
+				} else if (property['type'] == 'extended') {
+					propertyElements[2].selectedIndex = 2;
+					var newUL = document.createElement('ul');
+                    propertyElements[0].appendChild(newUL);
+					loadProperty(newUL, property['content']);
+				} else {
+					propertyElements[2].selectedIndex = 0;
+				}
+			}
+		}
+        
+		// Save a data string into the client's machine
+		function saveFileToLocal(data, fileName) {
+			var file = new Blob([data], {'type': 'text/plain'});
+			if (window.navigator.msSaveOrOpenBlob) {
+				window.navigator.msSaveOrOpenBlob(file, fileName);
+			} else {
+				var a = document.createElement('a');
+				var url = URL.createObjectURL(file);
+				a.href = url;
+				a.download = fileName;
+				document.body.appendChild(a);
+				a.click();
+				setTimeout(function() {
+						document.body.removeChild(a);
+						window.URL.revokeObjectURL(url);
+					}, 0);
+			}
+		}
+		
+		// Load a file from the client's machine
+		function openLocalFile(callback) {
+			var fileInputElement = document.createElement('input');
+			fileInputElement.type = 'file';
+			document.body.appendChild(fileInputElement);
+			fileInputElement.onchange = function () {
+					callback(fileInputElement.files[0]);
+				};
+			fileInputElement.click();
+			setTimeout(function() {
+					document.body.removeChild(fileInputElement);
+				}, 0);
+			
+		}
+		
         function refreshProgress(alpha) {
             var progressText = document.getElementById('progressText');
             var red = (1 - alpha) * PROGRESS_COLOR_START[0] + alpha * PROGRESS_COLOR_END[0];
