@@ -729,10 +729,11 @@
         function saveConfiguration() {
 			if (tablePopulated) {
                 var contentJSON = serializeUL(document.getElementById('propertiesRoot'));
-                contentJSON.push({'type':'coordinate', 'content':[
+                contentJSON.unshift({'type':'coordinate', 'content':[
                         document.getElementById('lat').value,
                         document.getElementById('lng').value,
-                        document.getElementById('address').value]});
+                        document.getElementById('address').value,
+                        document.getElementById('rowSkip').value]});
 				saveFileToLocal(JSON.stringify(contentJSON, null, 2), FILE_NAME);
 			} else {
 				alert('Please insert data into the table first');
@@ -782,6 +783,7 @@
                     setCombobox(document.getElementById('lat'), property['content'][0]);
                     setCombobox(document.getElementById('lng'), property['content'][1]);
                     setCombobox(document.getElementById('address'), property['content'][2]);
+                    document.getElementById('rowSkip').value = property['content'][3];
                 } else {
                     var propertyElements = addPropertyToUL(ulElement);
                     populateComboBox(propertyElements[2], true);
