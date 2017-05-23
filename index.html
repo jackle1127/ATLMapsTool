@@ -4,8 +4,11 @@
         <script src='jszip.js'></script>
         <script src='xlsx.js'></script>
         <script src='tsv_parser.js'></script>
-        <link rel="stylesheet" type="text/css" href="buttons.css">
+        <!--<link rel="stylesheet" type="text/css" href="buttons.css">-->
         <style>
+            * {
+                font-family: -apple-system, BlinkMacSystemFont, "Avenir Next", "Avenir", "Segoe UI", "Lucida Grande", "Helvetica Neue", "Helvetica", "Fira Sans", "Roboto", "Noto", "Droid Sans", "Cantarell", "Oxygen", "Ubuntu", "Franklin Gothic Medium", "Century Gothic", "Liberation Sans", sans-serif;
+            }
             #mainTable {
                 width: 100%;
                 height: 100%;
@@ -30,9 +33,10 @@
                 min-height: 500px;
             }
             #dataTableContainer {
+                width: 100%;
                 max-width: 100%;
                 max-height: 100%;
-                overflow: scroll;
+                overflow: hidden;
                 display: inline-block;
             }
             #tdDataTable {
@@ -45,11 +49,11 @@
             }
             .rowNumber {
                 width: 30px;
-                border-bottom:1px solid #98bf21;
+                border-bottom:1px solid #a14f08;
             }
             .colNumber {
-                border-right:1px solid #98bf21;
-                border-bottom:1px solid #98bf21;
+                border-right:1px solid #a14f08;
+                border-bottom:1px solid #a14f08;
                 position: relative;
             }
             #dataTable {
@@ -57,20 +61,20 @@
             }
             .dataTableCell {
                 font-size:1em;
-                border-right:1px solid #98bf21;
-                border-bottom:1px solid #98bf21;
+                border-right:1px solid #a14f08;
+                border-bottom:1px solid #a14f08;
             }
             .rowNumber, .colNumber {
                 height: 24px;
                 font-size:1.1em;
-                background-color:#A7C942;
+                background-color:#f58320;
                 color:#ffffff;
                 text-align: center;
-                /*border-right:1px solid #98bf21;*/
+                border-right:1px solid #a14f08;
             }
             #dataTable tr:nth-child(odd) td .dataTableCell {
                 color:#000000;
-                background-color:#EAF2D3;
+                background-color:#ffe1c7;
             }
             ul {
                 counter-reset: li; /* Initiate a counter */
@@ -117,6 +121,35 @@
                 font-weight: bold;
                 font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
             }
+            .button {
+                color: #FFF;
+                cursor: pointer;
+                display: inline-block;
+            }
+            .orange {
+                background-color: #f58320;
+            }
+            .gray {
+                background-color: #aaa;
+            }
+            .small {
+                font-size: .75em;
+                padding: 5px;
+            }
+            .medium {
+                font-size: 1em;
+                padding: 10px;
+            }
+            .big {
+                font-size: 1.5em;
+                padding-top: 15px;
+                padding-bottom: 15px;
+                padding-left: 30px;
+                padding-right: 30px;
+            }
+            #rightPartDiv {
+                display: none;
+            }
         </style>
     </head>
     <body onload='resize()' onresize='resize()'>
@@ -126,7 +159,7 @@
             <tr>
                 <td rowspan='2' id='tdDataTable'>
                     <div id='dataTableContainer'>
-                        <a class='button orange medium' onclick='tableClear()'>Reset</a>
+                        <a class='button orange big' onclick='tableClear()'>Reset</a>
                         <br/><br/>
                         <table id='dataTable'>
                             <tr>
@@ -161,12 +194,12 @@
                         Properties:
                         <ul id='propertiesRoot'>
                         </ul>
-                        <a class='button green medium addButton' onclick='addProperty(this)' id='addRootProperty'>Add</a>
+                        <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>Add</a>
                         <br/><br/>
-                        <a class='button blue medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
-                        <a class='button green medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
+                        <a class='button orange medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                        <a class='button gray medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
                         <br/><br/>
-                        <a onclick='generate()' class='button blue big'>Generate</a>
+                        <a onclick='generate()' class='button orange big'>Generate</a>
                         <br/><br/>
                         <span id='progressText'></span>
                         <br/>
@@ -185,8 +218,8 @@
         };*/
         var RESIZE_BAR_WIDTH = 6;
         var COLUMN_MIN_WIDTH = 80;
-        var PROGRESS_COLOR_START = [0, 21, 179];
-        var PROGRESS_COLOR_END = [38, 197, 0];
+        var PROGRESS_COLOR_START = [122, 60, 6];
+        var PROGRESS_COLOR_END = [245, 141, 50];
         
         var tablePopulated = false;
         var propertyIndices = new Set();
@@ -272,7 +305,10 @@
                     + '        </tr>\n';
             setOnPasteToTableInput();
             tablePopulated = false;
-            document.getElementById('dataTableContainer').style.height = '151px';
+            document.getElementById('dataTableContainer').style.height = '100%';
+            document.getElementById('dataTableContainer').style.width = '100%';
+            document.getElementById('rightPartDiv').style.display = 'none';
+            document.getElementById('dataTableContainer').style.overflow = 'hidden';
         }
         
         function refreshColumnSizes() {
@@ -343,6 +379,8 @@
             resize();
             
             tablePopulated = true;
+            document.getElementById('dataTableContainer').style.overflow = 'scroll';
+            document.getElementById('rightPartDiv').style.display = 'block';
         }
 
         function populateComboBoxes() {
@@ -395,7 +433,7 @@
                     populateComboBox(newComboBox, true);
                     
                     var newAddButton = document.createElement('a');
-                    newAddButton.className = 'button green medium addButton';
+                    newAddButton.className = 'button orange medium addButton';
                     newAddButton.innerText = 'Add';
                     newAddButton.onclick = function() {addProperty(this)};
 
@@ -598,7 +636,7 @@
                         if (node['type'] == 'text') {
                             newProperty += node['content'];
                         } else {
-                            newProperty += data[row][node['content']];
+                            newProperty += data[row][parseInt(node['content']) - 1];
                         }
                     }
                     resultJSON[property['name']] = newProperty;
