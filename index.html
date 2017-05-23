@@ -76,17 +76,38 @@
                 color:#000000;
                 background-color:#ffe1c7;
             }
-            ul {
+            #rightPartDiv ul {
                 counter-reset: li; /* Initiate a counter */
                 list-style: none; /* Remove default numbering */
                 *list-style: decimal; /* Keep using default numbering for IE6/7 */
                 font: 15px 'trebuchet MS', 'lucida sans';
                 padding: 0;
-                text-shadow: 0 1px 0 rgba(255,255,255,.5);
+                position: relative;
             }
-            ul li {
-				margin-top: 4px;
+            #rightPartDiv ul li {
+                position: relative;
                 margin-left: 2em; /* Add some left margin for inner lists */
+                padding: 2px;
+            }
+            #rightPartDiv li::before, #rightPartDiv li::after {
+                content: "";
+                position: absolute;
+                left: -12px;
+            }
+            #rightPartDiv li::before {
+                border-top: 1px solid #888;
+                top: 9px;
+                width: 8px;
+                height: 0;
+            }
+            #rightPartDiv li::after {
+                border-left: 1px solid #888;
+                top: 2px;
+                width: 0;
+                height: 100%;
+            }
+            #rightPartDiv ul > li:last-child::after {
+                height: 8px;
             }
             #propertiesRoot textarea {
                 display: block;
@@ -159,7 +180,7 @@
             <tr>
                 <td rowspan='2' id='tdDataTable'>
                     <div id='dataTableContainer'>
-                        <a class='button orange big' onclick='tableClear()'>Reset</a>
+                        <a class='button orange medium' onclick='tableClear()'>Reset</a>
                         <br/><br/>
                         <table id='dataTable'>
                             <tr>
@@ -184,11 +205,11 @@
                         Coordinate:
                         <ul>
                             <li>
-                                <table>
-                                    <tr><td>Latitude:</td><td><select id='lat' class='dataInputCoordinates'></select></td></tr>
-                                    <tr><td>Longitude:</td><td><select id='lng' class='dataInputCoordinates'></select></td></tr>
-                                    <tr><td>Or Street address:</td><td><select id='address' class='dataInputCoordinates'></select></td></tr>
-                                </table>
+                                Latitude: <select id='lat' class='dataInputCoordinates'></select>
+                            </li><li>
+                                Longitude: <select id='lng' class='dataInputCoordinates'></select>
+                            </li><li>
+                                Or Street address: <select id='address' class='dataInputCoordinates'></select>
                             </li>
                         </ul>
                         Properties:
@@ -431,19 +452,21 @@
                     var customUL = document.createElement('ul');
                     var newComboBox = addPropertyToUL(customUL)[2];
                     populateComboBox(newComboBox, true);
-                    
-                    var newAddButton = document.createElement('a');
-                    newAddButton.className = 'button orange medium addButton';
-                    newAddButton.innerText = 'Add';
-                    newAddButton.onclick = function() {addProperty(this)};
-
                     parent.appendChild(customUL);
-                    parent.appendChild(document.createElement('br'));
-                    parent.appendChild(newAddButton);
+                    addAddButtonToExtended(parent);
                 }
             } else {
                 removeCustom(comboBox);
             }
+        }
+        
+        function addAddButtonToExtended(ulElement) {
+            var newAddButton = document.createElement('a');
+            newAddButton.className = 'button orange medium addButton';
+            newAddButton.innerText = 'Add';
+            newAddButton.onclick = function() {addProperty(this)};
+            ulElement.appendChild(document.createTextNode(' '));
+            ulElement.appendChild(newAddButton);
         }
         
         function resize() {
@@ -716,6 +739,7 @@
 						reader.onload = function(event) {
 							try {
 								var propertyJSON = JSON.parse(event.target.result);
+                                //console.log(propertyJSON);
 								var propertyUL = document.getElementById('propertiesRoot');
 								propertyUL.innerHTML = '';
 								loadProperty(propertyUL, propertyJSON);
@@ -752,6 +776,7 @@
 					var newUL = document.createElement('ul');
                     propertyElements[0].appendChild(newUL);
 					loadProperty(newUL, property['content']);
+                    addAddButtonToExtended(propertyElements[0]);
 				} else {
 					propertyElements[2].selectedIndex = 0;
 				}
