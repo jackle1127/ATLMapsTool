@@ -253,7 +253,6 @@
         var propertiesConfigurations = {};
         var savedData = {'data': data, 'properties': propertiesConfigurations};
         
-        addProperty(document.getElementById('addRootProperty'));
         setOnPasteToTableInput();
         
         function loadSpreadsheet(fileInput) { // Receive data through loading a spreadsheet.
@@ -271,6 +270,7 @@
                         data = parseText(tsvText, '\t');
                         data = trimData(data);
                         populateTable();
+                        resetProperties();
                         populateComboBoxes();
                     });
                 };
@@ -281,6 +281,7 @@
                     data = parseText(dataText, ',');
                     data = trimData(data);
                     populateTable();
+                    resetProperties();
                     populateComboBoxes();
                 };
                 reader.readAsText(file);
@@ -301,13 +302,18 @@
                 data = parseText(plainText, '\t');
                 data = trimData(data);
                 populateTable();
+                resetProperties();
                 populateComboBoxes();
-
+                
 //                saveDataToCookie();
                 return false;
             };
         }
-        
+        function resetProperties() {
+            var propertiesUL = document.getElementById('propertiesRoot');
+            propertiesUL.innerHTML = '';
+            addProperty(document.getElementById('addRootProperty'));
+        }
         // Clear the spreadsheet table.
         function tableClear() {
             data = [];
@@ -722,7 +728,11 @@
 		var FILE_NAME = 'configuration.jcon';
         function saveConfiguration() {
 			if (tablePopulated) {
-				var contentJSON = serializeUL(document.getElementById('propertiesRoot'));
+                var contentJSON = serializeUL(document.getElementById('propertiesRoot'));
+                contentJSON.push({'type':'coordinate', 'content':[
+                        document.getElementById('lat').value,
+                        document.getElementById('lng').value,
+                        document.getElementById('address').value]});
 				saveFileToLocal(JSON.stringify(contentJSON, null, 2), FILE_NAME);
 			} else {
 				alert('Please insert data into the table first');
@@ -760,25 +770,39 @@
 		function loadProperty(ulElement, propertyJSON) {
 			for (var i = 0; i < propertyJSON.length; i++) {
 				var property = propertyJSON[i];
-				var propertyElements = addPropertyToUL(ulElement);
-				populateComboBox(propertyElements[2], true);
-				propertyElements[1].value = property['name'];
-				if (property['type'] == 'column') {
-					propertyElements[2].selectedIndex = Math.min(propertyElements[2].options.length - 1,
-							parseInt(property['content']) + 3);
-				} else if (property['type'] == 'custom') {
-					propertyElements[2].selectedIndex = 1;
-					var customTextBox = document.createElement('textarea');
-                    propertyElements[0].appendChild(customTextBox);
-					customTextBox.value = property['content'];
-				} else if (property['type'] == 'extended') {
-					propertyElements[2].selectedIndex = 2;
-					var newUL = document.createElement('ul');
-                    propertyElements[0].appendChild(newUL);
-					loadProperty(newUL, property['content']);
-                    addAddButtonToExtended(propertyElements[0]);
-				} else {
-					propertyElements[2].selectedIndex = 0;
+                if (property['type'] == 'coordinate') {
+                    function setCombobox(comboBox, value) {
+                        if (value == 'none') {
+                            comboBox.selectedIndex = 0;
+                        } else {
+                            comboBox.selectedIndex = Math.min(comboBox.options.length - 1,
+							parseInt(value) + 1);
+                        }
+                    }
+                    setCombobox(document.getElementById('lat'), property['content'][0]);
+                    setCombobox(document.getElementById('lng'), property['content'][1]);
+                    setCombobox(document.getElementById('address'), property['content'][2]);
+                } else {
+                    var propertyElements = addPropertyToUL(ulElement);
+                    populateComboBox(propertyElements[2], true);
+                    propertyElements[1].value = property['name'];
+                    if (property['type'] == 'column') {
+                        propertyElements[2].selectedIndex = Math.min(propertyElements[2].options.length - 1,
+                                parseInt(property['content']) + 3);
+                    } else if (property['type'] == 'custom') {
+                        propertyElements[2].selectedIndex = 1;
+                        var customTextBox = document.createElement('textarea');
+                        propertyElements[0].appendChild(customTextBox);
+                        customTextBox.value = property['content'];
+                    } else if (property['type'] == 'extended') {
+                        propertyElements[2].selectedIndex = 2;
+                        var newUL = document.createElement('ul');
+                        propertyElements[0].appendChild(newUL);
+                        loadProperty(newUL, property['content']);
+                        addAddButtonToExtended(propertyElements[0]);
+                    } else {
+                        propertyElements[2].selectedIndex = 0;
+                    }
 				}
 			}
 		}
