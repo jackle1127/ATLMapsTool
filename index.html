@@ -83,6 +83,7 @@
                 font: 15px 'trebuchet MS', 'lucida sans';
                 padding: 0;
                 position: relative;
+                
             }
             #rightPartDiv ul li {
                 position: relative;
@@ -96,7 +97,7 @@
             }
             #rightPartDiv li::before {
                 border-top: 1px solid #888;
-                top: 9px;
+                top: 10px;
                 width: 8px;
                 height: 0;
             }
@@ -107,12 +108,13 @@
                 height: 100%;
             }
             #rightPartDiv ul > li:last-child::after {
-                height: 8px;
+                height: 10px;
             }
             #propertiesRoot textarea {
                 display: block;
                 margin-top: 4px;
                 margin-bottom: 4px;
+                width: 268px;
             }
             .addButton {
                 margin-left: 1.65em;
@@ -136,6 +138,7 @@
             }
             #rightPartDiv {
                 overflow: auto;
+                display: none;
             }
             #progressText {
                 font-size: 1.5em;
@@ -143,23 +146,28 @@
                 font-family:"Trebuchet MS", Arial, Helvetica, sans-serif;
             }
             .button {
-                color: #FFF;
                 cursor: pointer;
                 display: inline-block;
             }
             .orange {
+                color: #FFF;
                 background-color: #f58320;
             }
             .gray {
+                color: #FFF;
                 background-color: #aaa;
             }
             .small {
                 font-size: .75em;
                 padding: 5px;
+                padding-left: 8px;
+                padding-right: 8px;
             }
             .medium {
                 font-size: 1em;
                 padding: 10px;
+                padding-left: 14px;
+                padding-right: 14px;
             }
             .big {
                 font-size: 1.5em;
@@ -168,8 +176,24 @@
                 padding-left: 30px;
                 padding-right: 30px;
             }
-            #rightPartDiv {
-                display: none;
+            .stretchedButton {
+                width: 100%;
+                cursor: pointer;
+                display: inline-block;
+                text-align: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            #progressContainer {
+                width: 99%;
+                height: 20px;
+                border: 2px solid #f58d32;
+            }
+            #progressBar {
+                width: 0;
+                height: 100%;
+                background-color: #f58d32;
+                transition: .2s all;
             }
         </style>
     </head>
@@ -215,15 +239,16 @@
                         Properties:
                         <ul id='propertiesRoot'>
                         </ul>
-                        <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>Add</a>
-                        <br/><br/>
-                        <a class='button orange medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
-                        <a class='button gray medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
-                        <br/><br/>
-                        <a onclick='generate()' class='button orange big'>Generate</a>
-                        <br/><br/>
-                        <span id='progressText'></span>
-                        <br/><br/>
+                        <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>+</a>
+                        <hr/>
+                        <a class='stretchedButton orange medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                        <br/>
+                        <a class='stretchedButton gray medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
+                        <hr/>
+                        <a onclick='generate()' class='stretchedButton orange big'>Generate</a>
+                        <hr/>
+                        <div id='progressContainer'><div id='progressBar'></div></div>
+                        <hr/>
                         Output GeoJSON:
                         <a class='button orange medium' onclick='document.getElementById("outputText").innerText="";'>Clear</a>
                         <br/><br/>
@@ -239,8 +264,6 @@
         };*/
         var RESIZE_BAR_WIDTH = 6;
         var COLUMN_MIN_WIDTH = 80;
-        var PROGRESS_COLOR_START = [122, 60, 6];
-        var PROGRESS_COLOR_END = [245, 141, 50];
         
         var tablePopulated = false;
         var propertyIndices = new Set();
@@ -469,7 +492,7 @@
         function addAddButtonToExtended(ulElement) {
             var newAddButton = document.createElement('a');
             newAddButton.className = 'button orange medium addButton';
-            newAddButton.innerText = 'Add';
+            newAddButton.innerText = '+';
             newAddButton.onclick = function() {addProperty(this)};
             ulElement.appendChild(document.createTextNode(' '));
             ulElement.appendChild(newAddButton);
@@ -495,7 +518,7 @@
             newComboBox.className = 'dataInput';
             newRemoveButton.className = 'button orange small';
             newRemoveButton.onclick = function() {removeProperty(this)};
-            newRemoveButton.innerText = 'Remove';
+            newRemoveButton.innerText = 'X';
             
             var newPropertyLi = document.createElement('li');
             newPropertyLi.appendChild(newInput);
@@ -605,7 +628,8 @@
                     outputGeoJSON['features'].push({});
                 }
                 var indexInJSONArray = 0; // Also for order keeping.
-                
+                removeProgressTransition();
+                refreshProgress(0);
                 for (var i = 0; i < data.length; i++) {
                     if (rowsToSkip.has((i + 1).toString())) {
                         continue;
@@ -693,10 +717,14 @@
             outputGeoJSON['features'][indexInJSONArray] = newDatum;
             rowsFinished++;
             console.log(rowsFinished + '/' + rowsToGenerate + ' rows finished');
-            setTimeout(function() {refreshProgress(rowsFinished / rowsToGenerate)}, 0);
+            setTimeout(function() {
+                        refreshProgress(rowsFinished / rowsToGenerate);
+                        setProgressTransition();
+                    }, 0);
             //alert(rowsFinished + ' finished');
             if (rowsFinished == rowsToGenerate) { // Have to put this here to handle the asynchronous calls.
-                document.getElementById('outputText').innerText = JSON.stringify(outputGeoJSON, null, 2);
+                document.getElementById('outputText').innerText = 
+                        JSON.stringify(outputGeoJSON, null, 2).replace(/\\n/g, '<br>');
                 if (refreshTable) {
                     populateTable();
                 }
@@ -842,16 +870,22 @@
 				}, 0);
 			
 		}
-		
-        function refreshProgress(alpha) {
-            var progressText = document.getElementById('progressText');
-            var red = (1 - alpha) * PROGRESS_COLOR_START[0] + alpha * PROGRESS_COLOR_END[0];
-            var green = (1 - alpha) * PROGRESS_COLOR_START[1] + alpha * PROGRESS_COLOR_END[1];
-            var blue = (1 - alpha) * PROGRESS_COLOR_START[2] + alpha * PROGRESS_COLOR_END[2];
-            var finalColor = 'rgb(' + parseInt(red) + ', ' + parseInt(green) + ', ' + parseInt(blue) +')';
-            progressText.style.color = finalColor;
-            progressText.innerText = parseInt(alpha * 100) + '% finished';
+        
+		function removeProgressTransition() {
+            var progressBar = document.getElementById('progressBar');
+            progressBar.style.transition = '0s all';
         }
+        
+        function setProgressTransition() {
+            var progressBar = document.getElementById('progressBar');
+            progressBar.style.transition = '.2s all';
+        }
+        
+        function refreshProgress(alpha) {
+            var progressBar = document.getElementById('progressBar');
+            progressBar.style.width = alpha * 100 + '%';
+        }
+        
         
         function ajaxCall(url, callback, arg) {
             url = encodeURI(url);
