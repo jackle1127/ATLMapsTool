@@ -6,6 +6,13 @@
         <script src='tsv_parser.js'></script>
         <!--<link rel="stylesheet" type="text/css" href="buttons.css">-->
         <style>
+            :root {
+                --mainHue: 28;
+                --normalColor: hsl(var(--mainHue), 91%, 54%);
+                --darkColor: hsl(var(--mainHue), 91%, 33%);
+                --lightColor: hsl(var(--mainHue), 100%, 89%);
+                --gray: #aaa;
+            }
             * {
                 font-family: -apple-system, BlinkMacSystemFont, "Avenir Next", "Avenir", "Segoe UI", "Lucida Grande", "Helvetica Neue", "Helvetica", "Fira Sans", "Roboto", "Noto", "Droid Sans", "Cantarell", "Oxygen", "Ubuntu", "Franklin Gothic Medium", "Century Gothic", "Liberation Sans", sans-serif;
             }
@@ -40,6 +47,7 @@
                 display: inline-block;
             }
             #tdDataTable {
+                width: 55%;
                 max-width: 55%;
                 /*max-height: 100%;*/
             }
@@ -49,11 +57,11 @@
             }
             .rowNumber {
                 width: 30px;
-                border-bottom:1px solid #a14f08;
+                border-bottom:1px solid var(--darkColor);
             }
             .colNumber {
-                border-right:1px solid #a14f08;
-                border-bottom:1px solid #a14f08;
+                border-right:1px solid var(--darkColor);
+                border-bottom:1px solid var(--darkColor);
                 position: relative;
             }
             #dataTable {
@@ -61,20 +69,20 @@
             }
             .dataTableCell {
                 font-size:1em;
-                border-right:1px solid #a14f08;
-                border-bottom:1px solid #a14f08;
+                border-right:1px solid var(--darkColor);
+                border-bottom:1px solid var(--darkColor);
             }
             .rowNumber, .colNumber {
                 height: 24px;
                 font-size:1.1em;
-                background-color:#f58320;
+                background-color: var(--normalColor);
                 color:#ffffff;
                 text-align: center;
-                border-right:1px solid #a14f08;
+                border-right:1px solid var(--darkColor);
             }
             #dataTable tr:nth-child(odd) td .dataTableCell {
                 color:#000000;
-                background-color:#ffe1c7;
+                background-color: var(--lightColor);
             }
             #rightPartDiv ul {
                 counter-reset: li; /* Initiate a counter */
@@ -96,19 +104,19 @@
                 left: -12px;
             }
             #rightPartDiv li::before {
-                border-top: 1px solid #888;
+                border-top: 1px solid var(--gray);
                 top: 10px;
                 width: 8px;
                 height: 0;
             }
             #rightPartDiv li::after {
-                border-left: 1px solid #888;
+                border-left: 1px solid var(--gray);
                 top: 2px;
                 width: 0;
                 height: 100%;
             }
             #rightPartDiv ul > li:last-child::after {
-                height: 10px;
+                height: 9px;
             }
             #propertiesRoot textarea {
                 display: block;
@@ -151,11 +159,11 @@
             }
             .orange {
                 color: #FFF;
-                background-color: #f58320;
+                background-color: var(--normalColor);
             }
             .gray {
                 color: #FFF;
-                background-color: #aaa;
+                background-color: var(--darkColor);
             }
             .small {
                 font-size: .75em;
@@ -187,13 +195,17 @@
             #progressContainer {
                 width: 99%;
                 height: 20px;
-                border: 2px solid #f58d32;
+                border: 2px solid var(--normalColor);
             }
             #progressBar {
                 width: 0;
                 height: 100%;
-                background-color: #f58d32;
+                background-color: var(--normalColor);
                 transition: .2s all;
+            }
+            #dataTableContainerOuter {
+                width: 100%;
+                height: 100%;
             }
         </style>
     </head>
