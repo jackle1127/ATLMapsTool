@@ -254,9 +254,9 @@
                         </ul>
                         <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>＋</a>
                         <hr/>
-                        <a class='stretchedButton orange medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                        <a class='stretchedButton gray medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
                         <br/>
-                        <a class='stretchedButton gray medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
+                        <a class='stretchedButton orange medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
                         <hr/>
                         <a onclick='generate()' class='stretchedButton orange big'>Generate</a>
                         <hr/>
@@ -673,7 +673,7 @@
                                 addDatumToGeoJSON(outputGeoJSON, parsedJSON, ajaxLat, ajaxLng, row, rowsToGenerate, indexInJSON);
                             };
                             var argument = [i, address, indexInJSONArray, latInput, lngInput];
-                            ajaxCall('http://nominatim.openstreetmap.org/search?format=json&q=' + address, callback, argument);
+                            ajaxCall('https://nominatim.openstreetmap.org/search?format=json&q=' + address, callback, argument);
                         } else {
                             dataLat = geoCodingCache[address]['lat'];
                             dataLng = geoCodingCache[address]['lng'];
