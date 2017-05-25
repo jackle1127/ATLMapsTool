@@ -1,5 +1,6 @@
 <html>
     <head>
+        <meta charset="UTF-8">
 		<title>Spreadsheet to geoJSON tool</title>
         <script src='jszip.js'></script>
         <script src='xlsx.js'></script>
@@ -251,7 +252,7 @@
                         Properties:
                         <ul id='propertiesRoot'>
                         </ul>
-                        <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>+</a>
+                        <a class='button orange medium addButton' onclick='addProperty(this)' id='addRootProperty'>＋</a>
                         <hr/>
                         <a class='stretchedButton orange medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
                         <br/>
@@ -504,7 +505,7 @@
         function addAddButtonToExtended(ulElement) {
             var newAddButton = document.createElement('a');
             newAddButton.className = 'button orange medium addButton';
-            newAddButton.innerText = '+';
+            newAddButton.innerText = '＋';
             newAddButton.onclick = function() {addProperty(this)};
             ulElement.appendChild(document.createTextNode(' '));
             ulElement.appendChild(newAddButton);
@@ -704,11 +705,11 @@
                             newProperty += data[row][parseInt(node['content']) - 1];
                         }
                     }
-                    resultJSON[property['name']] = newProperty;
+                    resultJSON[property['name']] = newProperty.replace(/\n/g, '<br>');
                 } else if (property['type'] == 'extended') {
                     resultJSON[property['name']] = dataFromJSON(property['content'], row);
                 } else {
-                    resultJSON[property['name']] = data[row][property['content']];
+                    resultJSON[property['name']] = data[row][property['content']].replace(/\n/g, '<br>');
                 }
             }
             return resultJSON;
@@ -736,7 +737,7 @@
             //alert(rowsFinished + ' finished');
             if (rowsFinished == rowsToGenerate) { // Have to put this here to handle the asynchronous calls.
                 document.getElementById('outputText').innerText = 
-                        JSON.stringify(outputGeoJSON, null, 2).replace(/\\n/g, '<br>');
+                        JSON.stringify(outputGeoJSON, null, 2);
                 if (refreshTable) {
                     populateTable();
                 }
