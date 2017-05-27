@@ -407,10 +407,27 @@ function generate() {
                 'features': []
         };
         
-        var rowsToSkip = document.getElementById('rowSkip').value.split(/\s*,\s*/);
-        if (rowsToSkip.length == 1 && rowsToSkip[0] == '') rowsToSkip.pop();
+        var rowsToSkipList = document.getElementById('rowSkip').value.split(/\s*,\s*/);
+        if (rowsToSkipList.length == 1 && rowsToSkipList[0] == '') rowsToSkipList.pop();
+		var rowsToSkip = [];
+		for (var i = 0; i < rowsToSkipList.length; i++) {
+			if (rowsToSkipList[i].indexOf('-') >= 0) {
+				var range = rowsToSkipList[i].split(/\s*-\s*/);
+				for (var j = range[0]; j <= range[1]; j++) {
+					rowsToSkip.push(parseInt(j));
+				}
+			} else {
+				rowsToSkip.push(parseInt(rowsToSkipList[i]));
+			}
+		}
         rowsToSkip = new Set(rowsToSkip);
-        
+        rowsToSkip.forEach(function (row) {
+				if (row > data.length) {
+					rowsToSkip.delete(row);
+				}
+			});
+		//console.log(rowsToSkip);
+		
         // Coordinate handling.
         var latInput = document.getElementById('lat').value;
         var lngInput = document.getElementById('lng').value;
@@ -427,7 +444,7 @@ function generate() {
         var parsedJSON = parseUL(rootUL);
         
         var rowsToGenerate = data.length - rowsToSkip.size;
-        console.log(rowsToGenerate);
+        //console.log(rowsToGenerate);
         // Prepare marker list to preserve markers order in case asynchronous method is used.
         for (var i = 1; i <= rowsToGenerate; i++) {
             outputGeoJSON['features'].push({});
@@ -436,7 +453,7 @@ function generate() {
         removeProgressTransition();
         refreshProgress(0);
         for (var i = 0; i < data.length; i++) {
-            if (rowsToSkip.has((i + 1).toString())) {
+            if (rowsToSkip.has(i + 1)) {
                 continue;
             }
             var dataLat, dataLng;
@@ -453,7 +470,7 @@ function generate() {
                         var latColumn = args[3];
                         var lngColumn = args[4];
                         var json = JSON.parse(responseText);
-                        console.log(json);
+                        //console.log(json);
                         var ajaxLat = 0, ajaxLng = 0;
                         if (json.length > 0) {
                             var ajaxLat = json[0]['lat'];
@@ -549,7 +566,7 @@ function addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, row, row
     };
     outputGeoJSON['features'][indexInJSONArray] = newDatum;
     rowsFinished++;
-    console.log(rowsFinished + '/' + rowsToGenerate + ' rows finished');
+    //console.log(rowsFinished + '/' + rowsToGenerate + ' rows finished');
     setTimeout(function() {
                 refreshProgress(rowsFinished / rowsToGenerate);
                 setProgressTransition();
@@ -629,7 +646,7 @@ function loadConfiguration() {
             } else {
                 alert('Cannot read configuration file. Make sure the extension of the file is "jcon"');
             }
-        });
+        }, '.jcon');
     } else {
         alert('Please insert data into the table first');
     }
@@ -706,9 +723,12 @@ function saveFileToLocal(data, fileName) {
 }
 
 // Load a file from the client's machine
-function openLocalFile(callback) {
+function openLocalFile(callback, filter) {
     var fileInputElement = document.createElement('input');
     fileInputElement.type = 'file';
+	if (filter) {
+		fileInputElement.accept = filter;
+	}
     document.body.appendChild(fileInputElement);
     fileInputElement.onchange = function () {
             callback(fileInputElement.files[0]);
@@ -738,7 +758,7 @@ function refreshProgress(alpha) {
 
 function ajaxCall(url, callback, arg) {
     url = encodeURI(url);
-    console.log(url);
+    //console.log(url);
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4) {
