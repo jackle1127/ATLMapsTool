@@ -222,6 +222,7 @@
     </head>
     <body onload='resize()' onresize='resize()'>
         <div id='toolContainer'>
+			<iframe id='frmDefaultConfiguration' src='default_configuration.jcon' onload='loadDefaultConfiguration(this);' style='display:none'></iframe>
             <style id='dataTableStyleSheet'>
             </style>
             <table id='mainTable'>
@@ -257,7 +258,7 @@
                                 </li><li>
                                     Longitude: <select id='lng' class='dataInputCoordinates'></select>
                                 </li><li>
-                                    Or Street address: <select id='address' class='dataInputCoordinates'></select>
+                                    Street address (if needed): <select id='address' class='dataInputCoordinates'></select>
                                 </li>
                             </ul>
                             Properties:

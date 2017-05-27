@@ -11,6 +11,12 @@ var geoCodingCache = {};
 
 var propertiesConfigurations = {};
 var savedData = {'data': data, 'properties': propertiesConfigurations};
+var defaultConfiguration;
+
+function loadDefaultConfiguration(frame) {
+	var content = frame.contentWindow.document.body.childNodes[0].innerHTML;
+	defaultConfiguration = JSON.parse(content);
+}
 
 window.addEventListener('load', function() {
         setOnPasteToTableInput();
@@ -31,10 +37,7 @@ function loadSpreadsheet(fileInput) { // Receive data through loading a spreadsh
             workbook.SheetNames.forEach(function(sheetName) {
                 var tsvText = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName], {'FS': '\t'}); // Sheet to tsv instead of csv.
                 data = parseText(tsvText, '\t');
-                data = trimData(data);
-                populateTable();
-                resetProperties();
-                populateComboBoxes();
+                prepareData();
             });
         };
         reader.readAsBinaryString(file);
@@ -42,10 +45,7 @@ function loadSpreadsheet(fileInput) { // Receive data through loading a spreadsh
         reader.onload = function(event) {
             var dataText = event.target.result;
             data = parseText(dataText, ',');
-            data = trimData(data);
-            populateTable();
-            resetProperties();
-            populateComboBoxes();
+            prepareData();
         };
         reader.readAsText(file);
     }
@@ -63,17 +63,21 @@ function setOnPasteToTableInput() {// Receive data through pasting TSV data in. 
     document.getElementById('pasteSpreadSheet').onpaste = function (event) {
         var plainText = event.clipboardData.getData('text/plain');
         data = parseText(plainText, '\t');
-        data = trimData(data);
-        populateTable();
-        resetProperties();
-        populateComboBoxes();
         return false;
     };
 }
+
+function prepareData() {
+	data = trimData(data);
+	populateTable();
+	populateComboBoxes();
+	resetProperties();
+}
+
 function resetProperties() {
     var propertiesUL = document.getElementById('propertiesRoot');
     propertiesUL.innerHTML = '';
-    addProperty(document.getElementById('addRootProperty'), true);
+    loadProperty(propertiesUL, defaultConfiguration, true);
 }
 // Clear the spreadsheet table.
 function tableClear() {
@@ -504,8 +508,8 @@ function addDatumToGeoJSON(outputGeoJSON, parsedJSON, dataLat, dataLng, row, row
             }, 0);
     //alert(rowsFinished + ' finished');
     if (rowsFinished == rowsToGenerate) { // Have to put this here to handle the asynchronous calls.
-        document.getElementById('outputText').innerText = 
-                JSON.stringify(outputGeoJSON, null, 2);
+        document.getElementById('outputText').innerHTML = 
+                JSON.stringify(outputGeoJSON, undefined, 2);
         if (refreshTable) {
             populateTable();
         }
@@ -549,7 +553,7 @@ function saveConfiguration() {
                 document.getElementById('lng').value,
                 document.getElementById('address').value,
                 document.getElementById('rowSkip').value]});
-        saveFileToLocal(JSON.stringify(contentJSON, null, 2), FILE_NAME);
+        saveFileToLocal(JSON.stringify(contentJSON, undefined, 2), FILE_NAME);
     } else {
         alert('Please insert data into the table first');
     }
