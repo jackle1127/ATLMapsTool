@@ -15,7 +15,7 @@
                 --lightColor: hsl(var(--mainHue), 100%, 89%);
                 --gray: #aaa;
             }
-            * {
+            #toolContainer * {
                 font-family: -apple-system, BlinkMacSystemFont, "Avenir Next", "Avenir", "Segoe UI", "Lucida Grande", "Helvetica Neue", "Helvetica", "Fira Sans", "Roboto", "Noto", "Droid Sans", "Cantarell", "Oxygen", "Ubuntu", "Franklin Gothic Medium", "Century Gothic", "Liberation Sans", sans-serif;
             }
             #mainTable {
@@ -160,13 +160,17 @@
                 cursor: pointer;
                 display: inline-block;
             }
-            .orange {
+            .normalColor {
                 color: #FFF;
                 background-color: var(--normalColor);
             }
-            .gray {
+            .darkColor {
                 color: #FFF;
                 background-color: var(--darkColor);
+            }
+			.lightColor {
+                color: #FFF;
+                background-color: var(--lightColor);
             }
             .small {
                 font-size: .75em;
@@ -228,7 +232,7 @@
                 <tr>
                     <td rowspan='2' id='tdDataTable'>
                         <div id='dataTableContainer'>
-                            <a class='button orange medium' onclick='tableClear()'>Reset</a>
+                            <a class='button normalColor medium' onclick='tableClear()'>Reset</a>
                             <br/><br/>
                             <table id='dataTable'>
                                 <tr>
@@ -263,18 +267,22 @@
                             Properties:
                             <ul id='propertiesRoot'>
                             </ul>
-                            <a class='button orange medium addButton' onclick='addProperty(this, true)' id='addRootProperty'>＋</a>
+                            <a class='button normalColor medium addButton' onclick='addProperty(this, true)' id='addRootProperty'>＋</a>
                             <hr/>
-                            <a class='stretchedButton gray medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                            <a class='stretchedButton normalColor medium'
+									onclick='if (confirm("Are you sure you want to reset?"))
+									resetProperties()' id='loadConfiguration'>Reset</a>
                             <br/>
-                            <a class='stretchedButton orange medium' onclick='loadConfiguration(this)' id='saveConfiguration'>Load Configuration</a>
+                            <a class='stretchedButton darkColor medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
+                            <br/>
+                            <a class='stretchedButton normalColor medium' onclick='loadConfiguration(this)' id='loadConfiguration'>Load Configuration</a>
                             <hr/>
-                            <a onclick='generate()' class='stretchedButton orange big'>Generate</a>
+                            <a onclick='generate()' class='stretchedButton normalColor big'>Generate</a>
                             <hr/>
                             <div id='progressContainer'><div id='progressBar'></div></div>
                             <hr/>
                             Output GeoJSON:
-                            <a class='button orange medium' onclick='document.getElementById("outputText").innerText="";'>Clear</a>
+                            <a class='button normalColor medium' onclick='document.getElementById("outputText").innerText="";'>Clear</a>
                             <br/><br/>
                             <textarea readonly id='outputText' class='text'></textarea>
                         <div>

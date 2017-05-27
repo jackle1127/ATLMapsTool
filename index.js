@@ -126,6 +126,7 @@ function resetProperties() {
     propertiesUL.innerHTML = '';
     loadProperty(propertiesUL, DEFAULT_CONFIGURATION, true);
 }
+
 // Clear the spreadsheet table.
 function tableClear() {
     data = [];
@@ -280,7 +281,7 @@ function customizableComboChange(comboBox) {
 
 function addAddButtonToExtended(ulElement, hasName) {
     var newAddButton = document.createElement('a');
-    newAddButton.className = 'button orange medium addButton';
+    newAddButton.className = 'button normalColor medium addButton';
     newAddButton.innerText = '＋';
     newAddButton.onclick = function() {addProperty(this, hasName)};
     ulElement.appendChild(document.createTextNode(' '));
@@ -304,7 +305,7 @@ function addPropertyToUL(ulElement, hasName) {
     var newRemoveButton = document.createElement('a');
     
     newComboBox.className = 'dataInput';
-    newRemoveButton.className = 'button orange small';
+    newRemoveButton.className = 'button normalColor small';
     newRemoveButton.onclick = function() {removeProperty(this)};
     newRemoveButton.innerText = 'X';
     
