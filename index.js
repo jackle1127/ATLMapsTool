@@ -1,3 +1,55 @@
+var DEFAULT_CONFIGURATION = [
+	  {
+		"type": "coordinate",
+		"content": [
+		  "none",
+		  "none",
+		  "none",
+		  "1"
+		]
+	  },
+	  {
+		"name": "name",
+		"type": "none"
+	  },
+	  {
+		"name": "description",
+		"type": "custom",
+		"content": ""
+	  },
+	  {
+		"name": "images",
+		"type": "multiple",
+		"content": [
+		  {
+			"name": "",
+			"type": "none"
+		  }
+		]
+	  },
+	  {
+		"name": "videos",
+		"type": "multiple",
+		"content": [
+		  {
+			"name": "",
+			"type": "none"
+		  }
+		]
+	  },
+	  {
+		"name": "audios",
+		"type": "multiple",
+		"content": [
+		  {
+			"name": "",
+			"type": "none"
+		  }
+		]
+	  }
+	];
+
+
 var RESIZE_BAR_WIDTH = 6;
 var COLUMN_MIN_WIDTH = 80;
 
@@ -11,12 +63,7 @@ var geoCodingCache = {};
 
 var propertiesConfigurations = {};
 var savedData = {'data': data, 'properties': propertiesConfigurations};
-var defaultConfiguration;
 
-function loadDefaultConfiguration(frame) {
-	var content = frame.contentWindow.document.body.childNodes[0].innerHTML;
-	defaultConfiguration = JSON.parse(content);
-}
 
 window.addEventListener('load', function() {
         setOnPasteToTableInput();
@@ -77,7 +124,7 @@ function prepareData() {
 function resetProperties() {
     var propertiesUL = document.getElementById('propertiesRoot');
     propertiesUL.innerHTML = '';
-    loadProperty(propertiesUL, defaultConfiguration, true);
+    loadProperty(propertiesUL, DEFAULT_CONFIGURATION, true);
 }
 // Clear the spreadsheet table.
 function tableClear() {
