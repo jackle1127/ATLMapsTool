@@ -222,6 +222,12 @@
                 width: 100%;
                 height: 100%;
             }
+            #configTable {
+                width: 100%;
+            }
+            #configTable td {
+                width: 50%;
+            }
         </style>
     </head>
     <body onload='resize()' onresize='resize()'>
@@ -269,13 +275,27 @@
                             </ul>
                             <a class='button normalColor medium addButton' onclick='addProperty(this, true)' id='addRootProperty'>＋</a>
                             <hr/>
-                            <a class='stretchedButton normalColor medium'
-									onclick='if (confirm("Are you sure you want to reset?"))
-									resetProperties()' id='loadConfiguration'>Reset</a>
-                            <br/>
-                            <a class='stretchedButton darkColor medium' onclick='saveConfiguration(this)' id='saveConfiguration'>Save Configuration</a>
-                            <br/>
-                            <a class='stretchedButton normalColor medium' onclick='loadConfiguration(this)' id='loadConfiguration'>Load Configuration</a>
+                            <table id='configTable'>
+                                <tr>
+                                    <td colspan=2>
+                                        <a class='stretchedButton normalColor medium'
+                                                onclick='if (confirm("Are you sure you want to reset?"))
+                                                resetProperties()' id='loadConfiguration'>Reset</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <a class='stretchedButton darkColor medium' 
+                                                onclick='saveConfiguration(this)'
+                                                id='saveConfiguration'>Save Configuration</a>
+                                    </td>
+                                    <td>
+                                        <a class='stretchedButton normalColor medium'
+                                        onclick='loadConfiguration(this)'
+                                        id='loadConfiguration'>Load Configuration</a>
+                                    </td>
+                                </tr>
+                            </table>
                             <hr/>
                             <a onclick='generate()' class='stretchedButton normalColor big'>Generate</a>
                             <hr/>
